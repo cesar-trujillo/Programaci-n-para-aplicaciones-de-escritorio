@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historial IMC</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        h2 {
+            color: #333;
+            text-align: center;
+        }
+        
+        .stats {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 18px;
+        }
+        
+        .registro {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-left: 5px solid #4CAF50;
+        }
+        
+        .registro:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        
+        .fecha {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .datos {
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        
+        .clasificacion {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .bajo-peso { background: #fff3cd; color: #856404; }
+        .normal { background: #d4edda; color: #155724; }
+        .sobrepeso { background: #ffe5d0; color: #fd7e14; }
+        .obesidad { background: #f8d7da; color: #721c24; }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        .btn-cerrar {
+            background: #6c757d;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+        }
+        
+        .btn-eliminar {
+            background: #dc3545;
+        }
+        
+        .btn-eliminar:hover {
+            background: #c82333;
+        }
+        
+        .vacio {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <button class="btn-cerrar" onclick="window.close()">Cerrar Ventana</button>
+    
+    <h2>📊 Historial de Cálculos IMC</h2>
+    
+    <div id="stats" class="stats">
+        Cargando estadísticas...
+    </div>
+    
+    <div id="historial">
+        Cargando historial...
+    </div>
+
+    <script>
+        // Función para obtener clase CSS según el IMC
+        function getClaseIMC(imc) {
+            if (imc < 18.5) return 'bajo-peso';
+            if (imc < 25) return 'normal';
+            if (imc < 30) return 'sobrepeso';
+            return 'obesidad';
+        }
+        
+        // Función para cargar y mostrar el historial
+        async function cargarHistorial() {
+            try {
+                const datos = await window.api.obtenerDatos();
+                const historialDiv = document.getElementById('historial');
+                const statsDiv = document.getElementById('stats');
+                
+                if (datos.length === 0) {
+                    historialDiv.innerHTML = '<div class="vacio">📭 No hay registros en el historial</div>';
+                    statsDiv.innerHTML = 'Total de registros: 0';
+                    return;
+                }
+                
+                // Calcular estadísticas
+                const total = datos.length;
+                const ultimo = datos[datos.length - 1];
+                
+                statsDiv.innerHTML = `
+                    <strong>Total de registros:</strong> ${total} | 
+                    <strong>Último IMC:</strong> ${ultimo.imc.toFixed(2)} (${ultimo.clasificacion})
+                `;
+                
+                // Mostrar historial ordenado del más reciente al más antiguo
+                const historialHTML = datos.reverse().map(item => {
+                    const claseIMC = getClaseIMC(item.imc);
+                    
+                    return `
+                        <div class="registro" id="reg-${item.id}">
+                            <div class="fecha">📅 ${item.fecha}</div>
+                            <div class="datos">
+                                <strong>⚖️ Peso:</strong> ${item.peso} kg | 
+                                <strong>📏 Altura:</strong> ${item.altura} m<br>
+                                <strong>📊 IMC:</strong> ${item.imc.toFixed(2)} 
+                                <span class="clasificacion ${claseIMC}">${item.clasificacion}</span>
+                            </div>
+                            <button class="btn-eliminar" onclick="eliminarRegistro(${item.id})">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+                
+                historialDiv.innerHTML = historialHTML;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('historial').innerHTML = 
+                    '<div style="color: red;">Error al cargar el historial</div>';
+            }
+        }
+        
+        // Función para eliminar registro
+        window.eliminarRegistro = async (id) => {
+            if (confirm('¿Eliminar este registro?')) {
+                const resultado = await window.api.eliminarDatos(id);
+                if (resultado.exito) {
+                    cargarHistorial(); // Recargar la lista
+                }
+            }
+        };
+        
+        // Actualizar cada 5 segundos (por si se agregan desde otra ventana)
+        setInterval(cargarHistorial, 5000);
+        
+        // Cargar al iniciar
+        document.addEventListener('DOMContentLoaded', cargarHistorial);
+    </script>
+</body>
+</html>
